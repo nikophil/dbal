@@ -1419,6 +1419,31 @@ abstract class SchemaManagerFunctionalTestCase extends FunctionalTestCase
         self::assertCount(1, $columns);
     }
 
+    public function testDropWithSchema(): void
+    {
+        $platform = $this->connection->getDatabasePlatform();
+
+        if (! $platform->supportsSchemas()) {
+            self::markTestSkipped('The platform does not support schemas/namespaces.');
+        }
+
+        $this->dropTableIfExists('some_schema.test_namespace');
+
+        $schema = new Schema();
+        $table  = $schema->createTable('some_schema.test_namespace');
+        $table->addColumn('id', Types::INTEGER, ['notnull' => true]);
+        $table->setPrimaryKey(['id']);
+
+        $schemaManager = $this->connection->createSchemaManager();
+        $schemaManager->createSchemaObjects($schema);
+        self::assertSame(['public', 'some_schema'], $schemaManager->listSchemaNames());
+
+        $schema = $schemaManager->introspectSchema();
+        $schemaManager->dropSchemaObjects($schema);
+
+        self::assertSame([], $schemaManager->listSchemaNames());
+    }
+
     /** @param list<Table> $tables */
     protected function findTableByName(array $tables, string $name): ?Table
     {

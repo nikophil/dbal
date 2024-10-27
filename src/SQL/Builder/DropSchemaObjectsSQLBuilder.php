@@ -23,6 +23,7 @@ final class DropSchemaObjectsSQLBuilder
         return array_merge(
             $this->buildSequenceStatements($schema->getSequences()),
             $this->buildTableStatements($schema->getTables()),
+            $this->buildNamespaceStatements($schema->getNamespaces()),
         );
     }
 
@@ -47,6 +48,26 @@ final class DropSchemaObjectsSQLBuilder
 
         foreach ($sequences as $sequence) {
             $statements[] = $this->platform->getDropSequenceSQL($sequence->getQuotedName($this->platform));
+        }
+
+        return $statements;
+    }
+
+    /**
+     * @param list<string> $namespaces
+     *
+     * @return list<string>
+     */
+    private function buildNamespaceStatements(array $namespaces): array
+    {
+        if (! $this->platform->supportsSchemas()) {
+            return [];
+        }
+
+        $statements = [];
+
+        foreach ($namespaces as $namespace) {
+            $statements[] = $this->platform->getDropSchemaSQL($namespace);
         }
 
         return $statements;
