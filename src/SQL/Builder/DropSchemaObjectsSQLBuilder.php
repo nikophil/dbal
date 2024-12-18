@@ -8,6 +8,7 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\View;
 
 use function array_merge;
 
@@ -24,6 +25,7 @@ final class DropSchemaObjectsSQLBuilder
             $this->buildSequenceStatements($schema->getSequences()),
             $this->buildTableStatements($schema->getTables()),
             $this->buildNamespaceStatements($schema->getNamespaces()),
+            $this->buildViewStatements($schema->getViews()),
         );
     }
 
@@ -68,6 +70,22 @@ final class DropSchemaObjectsSQLBuilder
 
         foreach ($namespaces as $namespace) {
             $statements[] = $this->platform->getDropSchemaSQL($namespace);
+        }
+
+        return $statements;
+    }
+
+    /**
+     * @param list<View> $views
+     *
+     * @return list<string>
+     */
+    private function buildViewStatements(array $views): array
+    {
+        $statements = [];
+
+        foreach ($views as $view) {
+            $statements[] = $this->platform->getDropViewSQL($view->getQuotedName($this->platform));
         }
 
         return $statements;

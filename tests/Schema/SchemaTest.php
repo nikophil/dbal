@@ -9,6 +9,7 @@ use Doctrine\DBAL\Schema\SchemaConfig;
 use Doctrine\DBAL\Schema\SchemaException;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\View;
 use Doctrine\DBAL\Types\Types;
 use PHPUnit\Framework\TestCase;
 
@@ -167,6 +168,73 @@ class SchemaTest extends TestCase
         $sequence = new Sequence('a_seq', 1, 1);
 
         new Schema([], [$sequence, $sequence]);
+    }
+
+    public function testAddViews(): void
+    {
+        $view = new View('a_view', 'SELECT 1');
+
+        $schema = new Schema([], [], null, [], [$view]);
+
+        self::assertTrue($schema->hasView('a_view'));
+        self::assertSame('a_view', $schema->getView('a_view')->getName());
+
+        self::assertEquals([$view], $schema->getViews());
+    }
+
+    public function testViewAccessCaseInsensitive(): void
+    {
+        $view = new View('a_View', 'SELECT 1');
+
+        $schema = new Schema([], [], null, [], [$view]);
+        self::assertTrue($schema->hasView('a_view'));
+        self::assertTrue($schema->hasView('a_View'));
+        self::assertTrue($schema->hasView('A_VIEW'));
+
+        self::assertEquals($view, $schema->getView('a_view'));
+        self::assertEquals($view, $schema->getView('a_View'));
+        self::assertEquals($view, $schema->getView('A_VIEW'));
+    }
+
+    public function testGetUnknownViewThrowsException(): void
+    {
+        $this->expectException(SchemaException::class);
+
+        $schema = new Schema();
+        $schema->getView('unknown');
+    }
+
+    public function testCreateView(): void
+    {
+        $schema = new Schema();
+        $view   = $schema->createView('a_view', 'SELECT 1');
+
+        self::assertEquals('a_view', $view->getName());
+        self::assertEquals('SELECT 1', $view->getSql());
+
+        self::assertTrue($schema->hasView('a_view'));
+        self::assertSame('a_view', $schema->getView('a_view')->getName());
+
+        self::assertEquals([$view], $schema->getViews());
+    }
+
+    public function testDropView(): void
+    {
+        $view = new View('a_View', 'SELECT 1');
+
+        $schema = new Schema([], [], null, [], [$view]);
+
+        $schema->dropView('a_view');
+        self::assertFalse($schema->hasView('a_view'));
+    }
+
+    public function testAddViewTwiceThrowsException(): void
+    {
+        $this->expectException(SchemaException::class);
+
+        $view = new View('a_View', 'SELECT 1');
+
+        new Schema([], [], null, [], [$view, $view]);
     }
 
     public function testConfigMaxIdentifierLength(): void

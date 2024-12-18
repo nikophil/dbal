@@ -11,6 +11,8 @@ use Doctrine\DBAL\Schema\Exception\SequenceAlreadyExists;
 use Doctrine\DBAL\Schema\Exception\SequenceDoesNotExist;
 use Doctrine\DBAL\Schema\Exception\TableAlreadyExists;
 use Doctrine\DBAL\Schema\Exception\TableDoesNotExist;
+use Doctrine\DBAL\Schema\Exception\ViewAlreadyExists;
+use Doctrine\DBAL\Schema\Exception\ViewDoesNotExist;
 use Doctrine\DBAL\SQL\Builder\CreateSchemaObjectsSQLBuilder;
 use Doctrine\DBAL\SQL\Builder\DropSchemaObjectsSQLBuilder;
 
@@ -57,18 +59,23 @@ class Schema extends AbstractAsset
     /** @var array<string, Sequence> */
     protected array $_sequences = [];
 
+    /** @var array<string, View> */
+    protected array $_views = [];
+
     protected SchemaConfig $_schemaConfig;
 
     /**
      * @param array<Table>    $tables
      * @param array<Sequence> $sequences
      * @param array<string>   $namespaces
+     * @param array<View>     $views
      */
     public function __construct(
         array $tables = [],
         array $sequences = [],
         ?SchemaConfig $schemaConfig = null,
         array $namespaces = [],
+        array $views = [],
     ) {
         $schemaConfig ??= new SchemaConfig();
 
@@ -90,6 +97,10 @@ class Schema extends AbstractAsset
 
         foreach ($sequences as $sequence) {
             $this->_addSequence($sequence);
+        }
+
+        foreach ($views as $view) {
+            $this->_addView($view);
         }
     }
 
@@ -132,6 +143,26 @@ class Schema extends AbstractAsset
         }
 
         $this->_sequences[$seqName] = $sequence;
+    }
+
+    protected function _addView(View $view): void
+    {
+        $namespaceName = $view->getNamespaceName();
+        $viewName      = $this->normalizeName($view);
+
+        if (isset($this->_views[$viewName])) {
+            throw ViewAlreadyExists::new($viewName);
+        }
+
+        if (
+            $namespaceName !== null
+            && ! $view->isInDefaultNamespace($this->getName())
+            && ! $this->hasNamespace($namespaceName)
+        ) {
+            $this->createNamespace($namespaceName);
+        }
+
+        $this->_views[$viewName] = $view;
     }
 
     /**
@@ -249,6 +280,29 @@ class Schema extends AbstractAsset
         return array_values($this->_sequences);
     }
 
+    public function hasView(string $name): bool
+    {
+        $name = $this->getFullQualifiedAssetName($name);
+
+        return isset($this->_views[$name]);
+    }
+
+    public function getView(string $name): View
+    {
+        $name = $this->getFullQualifiedAssetName($name);
+        if (! $this->hasView($name)) {
+            throw ViewDoesNotExist::new($name);
+        }
+
+        return $this->_views[$name];
+    }
+
+    /** @return list<View> */
+    public function getViews(): array
+    {
+        return array_values($this->_views);
+    }
+
     /**
      * Creates a new namespace.
      *
@@ -328,6 +382,26 @@ class Schema extends AbstractAsset
     {
         $name = $this->getFullQualifiedAssetName($name);
         unset($this->_sequences[$name]);
+
+        return $this;
+    }
+
+    /**
+     * Creates a new view.
+     */
+    public function createView(string $name, string $sql): View
+    {
+        $view = new View($name, $sql);
+        $this->_addView($view);
+
+        return $view;
+    }
+
+    /** @return $this */
+    public function dropView(string $name): self
+    {
+        $name = $this->getFullQualifiedAssetName($name);
+        unset($this->_views[$name]);
 
         return $this;
     }

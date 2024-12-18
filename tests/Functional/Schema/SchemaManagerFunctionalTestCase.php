@@ -692,6 +692,25 @@ abstract class SchemaManagerFunctionalTestCase extends FunctionalTestCase
         self::assertStringContainsString('view_test_table', $filtered[0]->getSql());
     }
 
+    public function testIntrospectSchemaWithView(): void
+    {
+        $this->createTestTable('view_test_table');
+
+        $name = 'doctrine_test_view';
+        $sql  = 'SELECT * FROM view_test_table';
+
+        $view = new View($name, $sql);
+
+        $this->schemaManager->createView($view);
+
+        $schema = $this->schemaManager->introspectSchema();
+
+        $filtered = array_values($this->filterElementsByName($schema->getViews(), $name));
+        self::assertCount(1, $filtered);
+
+        self::assertStringContainsString('view_test_table', $filtered[0]->getSql());
+    }
+
     public function testAutoincrementDetection(): void
     {
         if (! $this->connection->getDatabasePlatform()->supportsIdentityColumns()) {
