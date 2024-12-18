@@ -7,6 +7,7 @@ namespace Doctrine\DBAL\Schema;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Schema\Exception\NamespaceAlreadyExists;
+use Doctrine\DBAL\Schema\Exception\NamespaceDoesNotExist;
 use Doctrine\DBAL\Schema\Exception\SequenceAlreadyExists;
 use Doctrine\DBAL\Schema\Exception\SequenceDoesNotExist;
 use Doctrine\DBAL\Schema\Exception\TableAlreadyExists;
@@ -263,6 +264,24 @@ class Schema extends AbstractAsset
         }
 
         $this->namespaces[$unquotedName] = $name;
+
+        return $this;
+    }
+
+    /**
+     * Drops a new namespace from the schema.
+     *
+     * @return $this
+     */
+    public function dropNamespace(string $name): self
+    {
+        $unquotedName = strtolower($this->getUnquotedAssetName($name));
+
+        if (! isset($this->namespaces[$unquotedName])) {
+            throw NamespaceDoesNotExist::new($unquotedName);
+        }
+
+        unset($this->namespaces[$unquotedName]);
 
         return $this;
     }

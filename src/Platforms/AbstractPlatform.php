@@ -55,6 +55,7 @@ use function is_string;
 use function key;
 use function max;
 use function mb_strlen;
+use function preg_match;
 use function preg_quote;
 use function preg_replace;
 use function sprintf;
@@ -1038,6 +1039,10 @@ abstract class AbstractPlatform
             foreach ($diff->getCreatedSchemas() as $schema) {
                 $sql[] = $this->getCreateSchemaSQL($schema);
             }
+
+            foreach ($diff->getDroppedSchemas() as $schema) {
+                $sql[] = $this->getDropSchemaSQL($schema);
+            }
         }
 
         if ($this->supportsSequences()) {
@@ -1162,6 +1167,10 @@ abstract class AbstractPlatform
             throw NotSupported::new(__METHOD__);
         }
 
+        if (preg_match('/^\d/', $schemaName) > 0) {
+            return 'CREATE SCHEMA ' . $this->quoteIdentifier($schemaName);
+        }
+
         return 'CREATE SCHEMA ' . $schemaName;
     }
 
@@ -1181,6 +1190,10 @@ abstract class AbstractPlatform
     {
         if (! $this->supportsSchemas()) {
             throw NotSupported::new(__METHOD__);
+        }
+
+        if (preg_match('/^\d/', $schemaName) > 0) {
+            return 'DROP SCHEMA ' . $this->quoteIdentifier($schemaName);
         }
 
         return 'DROP SCHEMA ' . $schemaName;

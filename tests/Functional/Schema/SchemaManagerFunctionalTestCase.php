@@ -1419,6 +1419,53 @@ abstract class SchemaManagerFunctionalTestCase extends FunctionalTestCase
         self::assertCount(1, $columns);
     }
 
+    public function testCanCreateAndDropSchemaThatNeedToBeQuoted(): void
+    {
+        $platform = $this->connection->getDatabasePlatform();
+
+        if (! $platform->supportsSchemas()) {
+            self::markTestSkipped('The platform does not support schema/namespaces.');
+        }
+
+        $schemaManager = $this->connection->createSchemaManager();
+        $schema        = $schemaManager->introspectSchema();
+
+        $schema->createNamespace('001_schema');
+
+        $schemaManager = $this->connection->createSchemaManager();
+        $schemaManager->migrateSchema($schema);
+        self::assertContains('001_schema', $schemaManager->listSchemaNames());
+
+        $schema->dropNamespace('001_schema');
+        $schemaManager->migrateSchema($schema);
+        self::assertNotContains('001_schema', $schemaManager->listSchemaNames());
+    }
+
+    public function testCanCreateAndDropTableFromNamespaceThatNeedToBeQuoted(): void
+    {
+        $platform = $this->connection->getDatabasePlatform();
+
+        if (! $platform->supportsSchemas()) {
+            self::markTestSkipped('The platform does not support schema/namespaces.');
+        }
+
+        $schemaManager = $this->connection->createSchemaManager();
+        $schema        = $schemaManager->introspectSchema();
+
+        $table = $schema->createTable('001_schema.test_quoted_schema');
+        $table->addColumn('id', Types::INTEGER, ['notnull' => true]);
+        $table->setPrimaryKey(['id']);
+
+        $schemaManager = $this->connection->createSchemaManager();
+        $schemaManager->migrateSchema($schema);
+        self::assertContains('001_schema', $schemaManager->listSchemaNames());
+        self::assertContains('001_schema.test_quoted_schema', $schemaManager->listTableNames());
+
+        $schema->dropTable('001_schema.test_quoted_schema');
+        $schemaManager->migrateSchema($schema);
+        self::assertNotContains('001_schema.test_quoted_schema', $schemaManager->listTableNames());
+    }
+
     /** @param list<Table> $tables */
     protected function findTableByName(array $tables, string $name): ?Table
     {
